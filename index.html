@@ -426,41 +426,74 @@ function showCurrentQuestion(){
 }
 
 async function evalAnswer(){
-  const answer=document.getElementById('userAnswer').value.trim();
-  if(!answer){alert('Escribí algo primero.');return;}
-  const btn=document.getElementById('btnEvaluar');
-  btn.disabled=true;
-  btn.innerHTML='<span class="spinner"></span>Evaluando...';
-  const q=session.questions[session.idx];
-  const prompt=`Sos un profesor universitario. Pregunta: "${q.q}". Respuesta del alumno: "${answer}". Evaluá en 2-3 líneas: qué entendió y qué le falta. Sé directo. Al final escribí exactamente una de estas palabras sola: CORRECTO, PARCIAL, o INCORRECTO.`;
-  try{
-    const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:300,messages:[{role:'user',content:prompt}]})});
-    const d=await r.json();
-    const text=d.content[0].text.trim();
-    const lines=text.split('\n');
-    const verdict=lines[lines.length-1].trim();
-    const feedback=lines.slice(0,-1).join(' ').trim();
-    let cls='partial',label='Parcialmente correcto';
-    if(verdict==='CORRECTO'){cls='correct';label='Correcto ✓';session.results.correct++;state.correct++;}
-    else if(verdict==='INCORRECTO'){cls='incorrect';label='A repasar ✗';session.results.incorrect++;}
-    else session.results.partial++;
+  const answer = document.getElementById('userAnswer').value.trim();
+  if(!answer){ alert('Escribí algo primero.'); return; }
+  
+  const btn = document.getElementById('btnEvaluar');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>Evaluando con el material...';
+  
+  const q = session.questions[session.idx];
+  
+  // Extraemos el texto del material si se subió algún archivo para esta materia
+  const materialSubido = uploadedMaterials[session.mat];
+  const textoMaterial = (materialSubido && materialSubido.text) ? materialSubido.text : "";
+
+  // ACÁ VA LA URL LARGA QUE COPIASTE DE TU GOOGLE APPS SCRIPT
+  const URL_SCRIPT_GOOGLE = "https://script.google.com/macros/s/AKfycbzepcaCJxg3nBXKhCijs06uG1_5wBE_yRM-hoxi0I6UK1G6vD9XKhViM9OT6zuktczH/exec";
+
+  try {
+    const respuestaServidor = await fetch(URL_SCRIPT_GOOGLE, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        pregunta: q.q,
+        respuesta: answer,
+        material: textoMaterial // Se envía el texto extraído del PDF/TXT
+      })
+    });
+    
+    const datos = await respuestaServidor.json();
+    
+    if(datos.error) { throw new Error(datos.error); }
+    
+    const text = datos.result.trim();
+    const lines = text.split('\n');
+    const verdict = lines[lines.length - 1].trim();
+    const feedback = lines.slice(0, -1).join(' ').trim();
+    
+    let cls = 'partial', label = 'Parcialmente correcto';
+    if(verdict === 'CORRECTO'){ cls = 'correct'; label = 'Correcto ✓'; session.results.correct++; state.correct++; }
+    else if(verdict === 'INCORRECTO'){ cls = 'incorrect'; label = 'A repasar ✗'; session.results.incorrect++; }
+    else { session.results.partial++; }
+    
     state.answered++;
-    const today=getToday();
-    const yesterday=new Date(Date.now()-86400000).toISOString().slice(0,10);
-    if(state.lastDate!==today){state.streak=(state.lastDate===yesterday)?state.streak+1:1;state.lastDate=today;document.getElementById('todayDoneBanner').style.display='block';}
-    save();updateStats();
-    const isLast=session.idx>=session.questions.length-1;
-    document.getElementById('feedbackArea').innerHTML=`
+    const today = getToday();
+    const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+    
+    if(state.lastDate !== today){
+      state.streak = (state.lastDate === yesterday) ? state.streak + 1 : 1;
+      state.lastDate = today;
+      document.getElementById('todayDoneBanner').style.display = 'block';
+    }
+    
+    save(); updateStats();
+    const isLast = session.idx >= session.questions.length - 1;
+    
+    document.getElementById('feedbackArea').innerHTML = `
       <div class="feedback ${cls}"><div class="feedback-verdict">${label}</div>${feedback}</div>
       <div class="btn-row" style="margin-top:8px">
-        ${isLast?`<button class="primary" onclick="finishSession()">Ver resultado</button>`:`<button class="primary" onclick="nextQuestion()">Siguiente →</button>`}
+        ${isLast ? `<button class="primary" onclick="finishSession()">Ver resultado</button>` : `<button class="primary" onclick="nextQuestion()">Siguiente →</button>`}
       </div>`;
-  }catch(e){
-    document.getElementById('feedbackArea').innerHTML='<div class="feedback partial">Error de conexión. Intentá de nuevo.</div>';
+      
+  } catch(e) {
+    console.error(e);
+    document.getElementById('feedbackArea').innerHTML = '<div class="feedback incorrect"><div class="feedback-verdict">Error de evaluación</div>No se pudo conectar con el corrector de Google. Revisá la configuración del script.';
   }
-  btn.disabled=false;btn.textContent='Evaluar';
+  
+  btn.disabled = false;
+  btn.textContent = 'Evaluar';
 }
-
 function skipQuestion(){
   session.results.incorrect++;
   state.answered++;
