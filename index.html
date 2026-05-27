@@ -434,22 +434,18 @@ async function evalAnswer(){
   btn.innerHTML = '<span class="spinner"></span>Evaluando con el material...';
   
   const q = session.questions[session.idx];
-  
-  // Extraemos el texto del material si se subió algún archivo para esta materia
   const materialSubido = uploadedMaterials[session.mat];
   const textoMaterial = (materialSubido && materialSubido.text) ? materialSubido.text : "";
 
-  // Tu URL de Google Apps Script intacta
   const URL_SCRIPT_GOOGLE = "https://script.google.com/macros/s/AKfycbzepcaCJxg3nBXKhCijs06uG1_5wBE_yRM-hoxi0I6UK1G6vD9XKhViM9OT6zuktczH/exec";
 
   try {
-    // MODIFICACIÓN DE SEGURIDAD PARA EVITAR BLOQUEO DE CORS
+    // Mandamos el JSON como texto plano (text/plain) para evitar que el navegador envíe el preflight OPTIONS
     const respuestaServidor = await fetch(URL_SCRIPT_GOOGLE, {
       method: 'POST',
       mode: 'cors',
-      redirect: 'follow', // OBLIGATORIO: Le dice al navegador que siga el redireccionamiento de Google
+      redirect: 'follow',
       headers: {
-        // Usar text/plain evita que el navegador envíe la petición OPTIONS que rompe el script
         'Content-Type': 'text/plain;charset=utf-8'
       },
       body: JSON.stringify({
@@ -459,7 +455,10 @@ async function evalAnswer(){
       })
     });
     
-    // Obtenemos la respuesta primero como texto plano para asegurar la recepción
+    if (!respuestaServidor.ok) {
+      throw new Error(`Error de red: ${respuestaServidor.status}`);
+    }
+
     const textoPlano = await respuestaServidor.text();
     const datos = JSON.parse(textoPlano);
     
@@ -495,7 +494,7 @@ async function evalAnswer(){
       </div>`;
       
   } catch(e) {
-    console.error("Error capturado en fetch:", e);
+    console.error("Detalle del error en la evaluación:", e);
     document.getElementById('feedbackArea').innerHTML = '<div class="feedback incorrect"><div class="feedback-verdict">Error de evaluación</div>No se pudo conectar con el corrector de Google. Revisá la configuración del script.';
   }
   
