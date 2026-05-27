@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Estudio Diario</title>
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap');
+:root{--bg:#0f0f0f;--surface:#191919;--surface2:#222;--border:#2e2e2e;--text:#f0ede8;--muted:#888;--dim:#444;--alg:#5DCAA5;--cuv:#9B8FE8;--econ:#E8A44A;--fis:#5BA3E8;--danger:#e05c5c;--success:#5DCAA5;--warn:#E8A44A;}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;font-size:15px;min-height:100vh}
+.app{max-width:540px;margin:0 auto;padding:1.5rem 1rem 5rem}
+.top-bar{display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;padding-bottom:1rem;border-bottom:1px solid var(--border)}
+.logo{font-family:'DM Mono',monospace;font-size:13px;color:var(--muted);letter-spacing:.1em}
+.streak-badge{display:flex;align-items:center;gap:6px;background:var(--surface2);border:1px solid var(--border);border-radius:20px;padding:4px 12px;font-family:'DM Mono',monospace;font-size:13px}
+.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:1.25rem}
+.stat-box{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px;text-align:center}
+.stat-num{font-family:'DM Mono',monospace;font-size:20px;font-weight:500}
+.stat-label{font-size:11px;color:var(--muted);margin-top:2px}
+.tabs{display:flex;gap:4px;margin-bottom:1.5rem}
+.tab{flex:1;padding:9px;text-align:center;cursor:pointer;border:1px solid var(--border);border-radius:8px;font-size:13px;color:var(--muted);background:var(--surface);transition:all .15s}
+.tab.active{background:var(--text);color:var(--bg);border-color:var(--text);font-weight:500}
+.tab-content{display:none}.tab-content.active{display:block}
+.section{margin-bottom:1.25rem}
+.section-label{font-family:'DM Mono',monospace;font-size:11px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;margin-bottom:10px}
+.mat-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.mat-pill{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 14px;cursor:pointer;transition:all .15s;text-align:left}
+.mat-pill:hover{border-color:var(--dim);background:var(--surface2)}
+.mat-pill.active-alg{border-color:var(--alg);background:rgba(93,202,165,.08)}
+.mat-pill.active-cuv{border-color:var(--cuv);background:rgba(155,143,232,.08)}
+.mat-pill.active-econ{border-color:var(--econ);background:rgba(232,164,74,.08)}
+.mat-pill.active-fis{border-color:var(--fis);background:rgba(91,163,232,.08)}
+.mat-dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:8px;vertical-align:middle}
+.dot-alg{background:var(--alg)}.dot-cuv{background:var(--cuv)}.dot-econ{background:var(--econ)}.dot-fis{background:var(--fis)}
+.mat-name{font-size:14px;font-weight:500}.mat-sub{font-size:11px;color:var(--muted);margin-top:2px}
+
+/* Upload */
+.upload-zone{border:1px dashed var(--border);border-radius:10px;padding:18px;text-align:center;cursor:pointer;transition:border-color .15s}
+.upload-zone:hover{border-color:var(--dim)}
+.upload-zone input{display:none}
+.upload-hint{font-size:13px;color:var(--muted)}
+.upload-hint strong{color:var(--text)}
+.file-list{margin-top:10px;display:flex;flex-direction:column;gap:6px}
+.file-chip{display:flex;align-items:center;justify-content:space-between;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:6px 10px;font-size:12px;color:var(--muted)}
+.file-chip button{background:none;border:none;color:var(--dim);cursor:pointer;font-size:16px;line-height:1;padding:0}
+.file-chip button:hover{color:var(--danger)}
+.file-status{font-size:11px;color:var(--dim);margin-top:4px}
+
+/* Progress bar */
+.progress-wrap{margin-bottom:1rem}
+.progress-info{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.progress-label{font-size:13px;color:var(--muted)}
+.progress-count{font-family:'DM Mono',monospace;font-size:13px;color:var(--text)}
+.progress-bar{height:4px;background:var(--surface2);border-radius:2px;overflow:hidden}
+.progress-fill{height:100%;border-radius:2px;background:var(--text);transition:width .3s ease}
+
+/* Question */
+.q-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.25rem;margin-bottom:10px}
+.q-meta{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.q-tema{font-family:'DM Mono',monospace;font-size:11px;color:var(--muted);letter-spacing:.06em}
+.q-num{font-family:'DM Mono',monospace;font-size:11px;color:var(--dim)}
+.q-text{font-size:16px;line-height:1.6;color:var(--text)}
+.q-source{font-size:11px;color:var(--dim);margin-top:8px;font-style:italic}
+textarea{width:100%;background:var(--surface);border:1px solid var(--border);border-radius:10px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:14px;padding:12px 14px;resize:none;height:90px;outline:none;transition:border-color .15s;margin-top:0}
+textarea:focus{border-color:var(--dim)}
+textarea::placeholder{color:var(--dim)}
+.btn-row{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+button.primary{background:var(--text);color:var(--bg);border:none;border-radius:8px;padding:10px 18px;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:500;cursor:pointer;transition:opacity .15s}
+button.primary:hover{opacity:.85}
+button.primary:disabled{opacity:.4;cursor:not-allowed}
+button.secondary{background:none;color:var(--muted);border:1px solid var(--border);border-radius:8px;padding:10px 16px;font-family:'DM Sans',sans-serif;font-size:14px;cursor:pointer;transition:all .15s}
+button.secondary:hover{border-color:var(--dim);color:var(--text)}
+.feedback{border-radius:10px;padding:14px 16px;font-size:14px;line-height:1.6;margin-top:12px}
+.feedback.correct{background:rgba(93,202,165,.1);border-left:3px solid var(--success)}
+.feedback.partial{background:rgba(232,164,74,.1);border-left:3px solid var(--warn)}
+.feedback.incorrect{background:rgba(224,92,92,.1);border-left:3px solid var(--danger)}
+.feedback-verdict{font-weight:500;margin-bottom:6px;font-size:13px;letter-spacing:.03em}
+.feedback.correct .feedback-verdict{color:var(--success)}
+.feedback.partial .feedback-verdict{color:var(--warn)}
+.feedback.incorrect .feedback-verdict{color:var(--danger)}
+
+/* Session summary */
+.summary-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.5rem;text-align:center}
+.summary-score{font-family:'DM Mono',monospace;font-size:48px;font-weight:500;margin-bottom:4px}
+.summary-label{font-size:14px;color:var(--muted);margin-bottom:1.5rem}
+.summary-breakdown{display:flex;justify-content:center;gap:20px;margin-bottom:1.5rem}
+.sb-item{text-align:center}
+.sb-num{font-family:'DM Mono',monospace;font-size:20px;font-weight:500}
+.sb-label{font-size:11px;color:var(--muted);margin-top:2px}
+.sb-correct .sb-num{color:var(--success)}
+.sb-partial .sb-num{color:var(--warn)}
+.sb-incorrect .sb-num{color:var(--danger)}
+
+/* Config */
+.config-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.25rem}
+.field-group{margin-bottom:12px}
+.field-label{font-size:12px;color:var(--muted);margin-bottom:5px}
+input[type=text],input[type=email],input[type=time],input[type=number]{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:14px;padding:9px 12px;outline:none;transition:border-color .15s}
+input:focus{border-color:var(--dim)}
+.hint{font-size:12px;color:var(--dim);margin-top:5px;line-height:1.6}
+.hint code{background:var(--surface2);padding:2px 5px;border-radius:4px;font-size:11px}
+.status-msg{font-size:13px;margin-top:10px;padding:10px 12px;border-radius:8px}
+.status-ok{background:rgba(93,202,165,.1);color:var(--success)}
+.status-err{background:rgba(224,92,92,.1);color:var(--danger)}
+.status-info{background:var(--surface2);color:var(--muted)}
+.divider{border:none;border-top:1px solid var(--border);margin:1.25rem 0}
+.spinner{display:inline-block;width:14px;height:14px;border:2px solid var(--dim);border-top-color:var(--text);border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle;margin-right:6px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.today-done{background:rgba(93,202,165,.08);border:1px solid rgba(93,202,165,.3);border-radius:8px;padding:10px 14px;font-size:13px;color:var(--success);margin-bottom:1rem;text-align:center}
+.empty-state{text-align:center;padding:2rem 1rem;color:var(--muted);font-size:14px;line-height:1.7}
+.qty-row{display:flex;align-items:center;gap:10px;margin-bottom:1rem}
+.qty-row label{font-size:13px;color:var(--muted);white-space:nowrap}
+.qty-row input{width:70px}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="top-bar">
+    <div class="logo">ESTUDIO.DIARIO</div>
+    <div class="streak-badge">
+      <span style="color:var(--warn)">★</span>
+      <span style="color:var(--text);font-weight:500" id="streakNum">0</span>
+      <span style="color:var(--muted);font-size:12px">días</span>
+    </div>
+  </div>
+
+  <div class="stats-row">
+    <div class="stat-box"><div class="stat-num" id="statSessions">0</div><div class="stat-label">sesiones</div></div>
+    <div class="stat-box"><div class="stat-num" id="statAnswered">0</div><div class="stat-label">respondidas</div></div>
+    <div class="stat-box"><div class="stat-num" id="statCorrect">0</div><div class="stat-label">correctas</div></div>
+    <div class="stat-box"><div class="stat-num" id="statPct">—</div><div class="stat-label">% acierto</div></div>
+  </div>
+
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab('estudiar')">Estudiar</div>
+    <div class="tab" onclick="switchTab('material')">Material</div>
+    <div class="tab" onclick="switchTab('config')">Configurar</div>
+  </div>
+
+  <!-- TAB ESTUDIAR -->
+  <div class="tab-content active" id="tab-estudiar">
+    <div id="todayDoneBanner" style="display:none" class="today-done">✓ Sesión de hoy completada. Volvé mañana — o seguí practicando.</div>
+
+    <div id="view-select">
+      <div class="section">
+        <div class="section-label">Materia</div>
+        <div class="mat-grid">
+          <div class="mat-pill" onclick="selectMat('alg')" id="pill-alg"><span class="mat-dot dot-alg"></span><span class="mat-name">Algoritmos</span><div class="mat-sub">Listas · Archivos binarios</div></div>
+          <div class="mat-pill" onclick="selectMat('cuv')" id="pill-cuv"><span class="mat-dot dot-cuv"></span><span class="mat-name">CUV</span><div class="mat-sub">Cálculo en una variable</div></div>
+          <div class="mat-pill" onclick="selectMat('econ')" id="pill-econ"><span class="mat-dot dot-econ"></span><span class="mat-name">Economía</span><div class="mat-sub">Parcial 9/6</div></div>
+          <div class="mat-pill" onclick="selectMat('fis')" id="pill-fis"><span class="mat-dot dot-fis"></span><span class="mat-name">Física</span><div class="mat-sub">Parcial 19/6</div></div>
+        </div>
+      </div>
+      <div class="qty-row">
+        <label>Preguntas por sesión:</label>
+        <input type="number" id="qtyInput" value="10" min="1" max="20">
+      </div>
+      <button class="primary" id="btnStart" onclick="startSession()" style="width:100%;padding:14px;font-size:15px" disabled>Elegí una materia</button>
+    </div>
+
+    <div id="view-session" style="display:none">
+      <div class="progress-wrap">
+        <div class="progress-info">
+          <span class="progress-label" id="progressLabel">Pregunta 1 de 10</span>
+          <span class="progress-count" id="progressCount"></span>
+        </div>
+        <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+      </div>
+      <div class="q-card">
+        <div class="q-meta">
+          <div class="q-tema" id="qTema"></div>
+          <div class="q-num" id="qNum"></div>
+        </div>
+        <div class="q-text" id="qText"></div>
+        <div class="q-source" id="qSource"></div>
+      </div>
+      <textarea id="userAnswer" placeholder="Escribí tu respuesta aunque sea incompleta..."></textarea>
+      <div class="btn-row">
+        <button class="primary" id="btnEvaluar" onclick="evalAnswer()">Evaluar</button>
+        <button class="secondary" onclick="skipQuestion()">Saltar</button>
+        <button class="secondary" onclick="abortSession()">Terminar</button>
+      </div>
+      <div id="feedbackArea"></div>
+    </div>
+
+    <div id="view-summary" style="display:none">
+      <div class="summary-card">
+        <div class="summary-score" id="summaryScore"></div>
+        <div class="summary-label">de acierto en esta sesión</div>
+        <div class="summary-breakdown">
+          <div class="sb-item sb-correct"><div class="sb-num" id="sumCorrect">0</div><div class="sb-label">correctas</div></div>
+          <div class="sb-item sb-partial"><div class="sb-num" id="sumPartial">0</div><div class="sb-label">parciales</div></div>
+          <div class="sb-item sb-incorrect"><div class="sb-num" id="sumIncorrect">0</div><div class="sb-label">a repasar</div></div>
+        </div>
+        <button class="primary" onclick="resetToSelect()" style="width:100%">Nueva sesión</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB MATERIAL -->
+  <div class="tab-content" id="tab-material">
+    <div class="section">
+      <div class="section-label">Subí tu material de estudio</div>
+      <div class="upload-zone" onclick="document.getElementById('fileInput').click()">
+        <input type="file" id="fileInput" multiple accept=".txt,.md,.pdf,.png,.jpg,.jpeg,.webp" onchange="handleFiles(event)">
+        <div class="upload-hint"><strong>Tocá para subir archivos</strong></div>
+        <div style="font-size:12px;color:var(--dim);margin-top:6px">PDF · TXT · MD · PNG · JPG · WEBP</div>
+      </div>
+      <div class="file-list" id="fileList"></div>
+      <div id="uploadStatus" style="margin-top:8px"></div>
+    </div>
+    <div class="hint" style="margin-top:.5rem;line-height:1.8">
+      Las preguntas se van a generar basadas en tu material.<br>
+      Para PPT: guardalo como PDF desde PowerPoint (Archivo → Exportar → PDF).<br>
+      Para Word: guardalo como .txt o PDF.
+    </div>
+  </div>
+
+  <!-- TAB CONFIG -->
+  <div class="tab-content" id="tab-config">
+    <div class="section">
+      <div class="section-label">Email diario</div>
+      <div class="config-card">
+        <div class="field-group">
+          <div class="field-label">Tu email</div>
+          <input type="email" id="cfgEmail" placeholder="vos@gmail.com">
+        </div>
+        <div class="field-group">
+          <div class="field-label">Hora del recordatorio</div>
+          <input type="time" id="cfgHora" value="21:00">
+        </div>
+        <div class="divider"></div>
+        <div style="font-size:13px;font-weight:500;margin-bottom:12px;color:var(--muted)">Claves EmailJS <span style="font-weight:400;font-size:12px">(gratis)</span></div>
+        <div class="field-group"><div class="field-label">Public Key</div><input type="text" id="cfgPublicKey" placeholder="user_xxxxxxxxxxxx"></div>
+        <div class="field-group"><div class="field-label">Service ID</div><input type="text" id="cfgServiceId" placeholder="service_xxxxxxx"></div>
+        <div class="field-group"><div class="field-label">Template ID</div><input type="text" id="cfgTemplateId" placeholder="template_xxxxxxx"></div>
+        <div class="btn-row">
+          <button class="primary" onclick="saveConfig()">Guardar y activar</button>
+          <button class="secondary" onclick="testEmail()">Email de prueba</button>
+        </div>
+        <div id="cfgStatus"></div>
+        <div class="divider"></div>
+        <div style="font-size:13px;font-weight:500;margin-bottom:8px">Cómo configurar EmailJS (5 min)</div>
+        <div class="hint">
+          1. Cuenta gratis en <strong>emailjs.com</strong><br>
+          2. Add Service → Gmail → copiá el <strong>Service ID</strong><br>
+          3. Email Templates → Create → usá estas variables:<br>
+          <code>{{materia}}</code> <code>{{pregunta}}</code> <code>{{tema}}</code> <code>{{hora}}</code><br>
+          4. Copiá <strong>Template ID</strong> y <strong>Public Key</strong> (Account → General)<br>
+          5. Pegá todo acá y guardá.
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+const MAT_NAMES = {alg:'Algoritmos',cuv:'CUV — Cálculo',econ:'Economía',fis:'Física'};
+const FALLBACK = {
+  alg:[
+    {q:'¿Qué es una lista enlazada y en qué se diferencia de un array?',t:'Listas'},
+    {q:'¿Cómo insertás un nodo al inicio de una lista en C? Describí los pasos.',t:'Listas'},
+    {q:'¿Qué pasa en memoria al eliminar un nodo de una lista?',t:'Listas'},
+    {q:'¿Diferencia entre lista simple y doblemente enlazada?',t:'Listas'},
+    {q:'¿Qué es un nodo centinela y para qué sirve?',t:'Listas'},
+    {q:'¿Cómo recorrés todos los elementos de una lista enlazada en C?',t:'Listas'},
+    {q:'¿Qué es un archivo binario y cómo lo abrís en C?',t:'Archivos binarios'},
+    {q:'¿Para qué sirven fread() y fwrite()? ¿Qué parámetros reciben?',t:'Archivos binarios'},
+    {q:'¿Cómo guardás una struct completa en un archivo binario?',t:'Archivos binarios'},
+    {q:'¿Qué es fseek() y cuándo lo usarías?',t:'Archivos binarios'},
+    {q:'¿Diferencia entre modo "rb" y "wb" al abrir un archivo en C?',t:'Archivos binarios'},
+    {q:'¿Cómo sabés si llegaste al final de un archivo binario?',t:'Archivos binarios'},
+  ],
+  cuv:[
+    {q:'¿Qué condiciones debe cumplir una función para ser continua en un punto?',t:'Continuidad'},
+    {q:'Explicá con tus palabras qué significa la derivada en un punto.',t:'Derivadas'},
+    {q:'¿Cuál es la regla de la cadena y cuándo la usás?',t:'Derivadas'},
+    {q:'¿Qué dice el Teorema de Rolle y cuáles son sus hipótesis?',t:'Teoremas'},
+    {q:'¿Cuándo aplicás L\'Hôpital y qué indeterminaciones resuelve?',t:'L\'Hôpital'},
+    {q:'¿Qué es el polinomio de Taylor y para qué sirve?',t:'Taylor'},
+    {q:'¿Diferencia entre integral definida e indefinida?',t:'Integrales'},
+    {q:'Enunciá el Teorema Fundamental del Cálculo (Barrow).',t:'Integrales'},
+    {q:'¿Qué es un punto de inflexión y cómo lo encontrás?',t:'Análisis'},
+    {q:'¿Cómo determinás si una función es creciente o decreciente en un intervalo?',t:'Análisis'},
+    {q:'¿Qué es una discontinuidad evitable? Dá un ejemplo.',t:'Continuidad'},
+    {q:'¿Qué es el valor extremo de una función y cómo lo encontrás?',t:'Optimización'},
+  ],
+  econ:[
+    {q:'¿Qué caracteriza a la competencia perfecta? Nombrá 3 condiciones.',t:'Mercados'},
+    {q:'¿Diferencia principal entre monopolio y competencia perfecta?',t:'Mercados'},
+    {q:'¿Qué es la competencia monopolística? Dá un ejemplo real.',t:'Mercados'},
+    {q:'¿Qué es un oligopolio y por qué es difícil modelarlo?',t:'Mercados'},
+    {q:'¿Qué mide el PBI y cuáles son sus métodos de cálculo?',t:'Macroeconomía'},
+    {q:'¿Qué es la política monetaria y qué herramientas usa el banco central?',t:'Dinero'},
+    {q:'¿Qué registra la balanza de pagos?',t:'Sector externo'},
+    {q:'¿Diferencia entre tipo de cambio fijo y flotante?',t:'Mercado cambiario'},
+    {q:'¿Cómo se define la inflación y cuáles son sus causas principales?',t:'Inflación'},
+    {q:'¿Qué es la tasa de desempleo y cómo se calcula?',t:'Mercado de trabajo'},
+    {q:'¿Qué es el crecimiento económico y cómo se mide?',t:'Crecimiento'},
+    {q:'¿Qué es la política fiscal y cómo se diferencia de la monetaria?',t:'Macroeconomía'},
+  ],
+  fis:[
+    {q:'¿Qué es la cantidad de movimiento lineal y cómo se relaciona con la fuerza?',t:'Mov. lineal'},
+    {q:'¿Qué dice el principio de conservación del momento lineal?',t:'Mov. lineal'},
+    {q:'¿Diferencia entre colisión elástica e inelástica?',t:'Colisiones'},
+    {q:'¿Qué se conserva en una colisión perfectamente inelástica?',t:'Colisiones'},
+    {q:'¿Qué es el momento de inercia y de qué depende?',t:'Rotación'},
+    {q:'¿Cuál es la analogía rotacional de la segunda ley de Newton?',t:'Rotación'},
+    {q:'¿Qué es la cantidad de movimiento angular y cuándo se conserva?',t:'Mov. angular'},
+    {q:'¿Diferencia entre velocidad angular y velocidad lineal en rotación?',t:'Rotación'},
+    {q:'¿Qué es el torque y cómo se calcula?',t:'Rotación'},
+    {q:'¿Cómo se relacionan la energía cinética traslacional y rotacional?',t:'Energía'},
+    {q:'¿Qué es el impulso y cómo se relaciona con el cambio de momento?',t:'Mov. lineal'},
+    {q:'En una colisión en 2D, ¿qué se conserva en cada dirección?',t:'Colisiones'},
+  ]
+};
+
+let state = {streak:0,answered:0,correct:0,sessions:0,lastDate:null};
+let session = {mat:null,questions:[],idx:0,results:{correct:0,partial:0,incorrect:0},active:false};
+let uploadedMaterials = {};
+let currentMat = null;
+let notifTimer = null;
+
+function load(){
+  try{const s=localStorage.getItem('ed2_state');if(s)state={...state,...JSON.parse(s)};}catch(e){}
+  try{const c=localStorage.getItem('ed2_config');if(c){const cfg=JSON.parse(c);['cfgEmail','cfgHora','cfgPublicKey','cfgServiceId','cfgTemplateId'].forEach(id=>{if(cfg[id])document.getElementById(id).value=cfg[id];});}}catch(e){}
+  updateStats();
+  if(state.lastDate===getToday()) document.getElementById('todayDoneBanner').style.display='block';
+}
+function save(){try{localStorage.setItem('ed2_state',JSON.stringify(state));}catch(e){}}
+function getToday(){return new Date().toISOString().slice(0,10);}
+function updateStats(){
+  document.getElementById('statSessions').textContent=state.sessions;
+  document.getElementById('statAnswered').textContent=state.answered;
+  document.getElementById('statCorrect').textContent=state.correct;
+  document.getElementById('statPct').textContent=state.answered>0?Math.round(state.correct/state.answered*100)+'%':'—';
+  document.getElementById('streakNum').textContent=state.streak;
+}
+function switchTab(t){
+  document.querySelectorAll('.tab').forEach((el,i)=>el.classList.toggle('active',['estudiar','material','config'][i]===t));
+  document.querySelectorAll('.tab-content').forEach(el=>el.classList.remove('active'));
+  document.getElementById('tab-'+t).classList.add('active');
+}
+function selectMat(mat){
+  currentMat=mat;
+  document.querySelectorAll('.mat-pill').forEach(p=>{p.className='mat-pill';});
+  document.getElementById('pill-'+mat).className='mat-pill active-'+mat;
+  const btn=document.getElementById('btnStart');
+  btn.textContent='Iniciar sesión — '+MAT_NAMES[mat];
+  btn.disabled=false;
+}
+
+async function startSession(){
+  if(!currentMat)return;
+  const qty=Math.min(20,Math.max(1,parseInt(document.getElementById('qtyInput').value)||10));
+  session={mat:currentMat,questions:[],idx:0,results:{correct:0,partial:0,incorrect:0},active:true};
+  document.getElementById('view-select').style.display='none';
+  document.getElementById('view-summary').style.display='none';
+  document.getElementById('view-session').style.display='block';
+  document.getElementById('feedbackArea').innerHTML='';
+  document.getElementById('userAnswer').value='';
+
+  const btn=document.getElementById('btnEvaluar');
+  btn.disabled=true;
+  document.getElementById('qText').textContent='Generando preguntas...';
+  document.getElementById('qTema').textContent='';
+  document.getElementById('qSource').textContent='';
+
+  const material = uploadedMaterials[currentMat];
+  if(material && material.text){
+    session.questions = await generateQuestionsFromMaterial(currentMat, material, qty);
+  } else {
+    session.questions = pickRandom(FALLBACK[currentMat], qty);
+  }
+  showCurrentQuestion();
+}
+
+async function generateQuestionsFromMaterial(mat, material, qty){
+  const isImage = material.type === 'image';
+  try {
+    let messages;
+    if(isImage){
+      messages=[{role:'user',content:[
+        {type:'image',source:{type:'base64',media_type:material.mediaType,data:material.data}},
+        {type:'text',text:`Sos un profesor de ${MAT_NAMES[mat]}. Basándote en este material, generá exactamente ${qty} preguntas conceptuales para que el alumno estudie. Respondé SOLO con JSON array: [{"q":"...","t":"tema corto"},...]`}
+      ]}];
+    } else {
+      messages=[{role:'user',content:`Sos un profesor de ${MAT_NAMES[mat]}. Basándote en este material del alumno, generá exactamente ${qty} preguntas conceptuales variadas para estudiar. Respondé SOLO con JSON array: [{"q":"...","t":"tema corto"},...]. Material:\n${material.text.slice(0,10000)}`}];
+    }
+    const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1500,messages})});
+    const d=await r.json();
+    const text=d.content[0].text.replace(/```json|```/g,'').trim();
+    const parsed=JSON.parse(text);
+    return parsed.slice(0,qty).map(x=>({q:x.q,t:x.t,fromMaterial:true}));
+  } catch(e){
+    return pickRandom(FALLBACK[mat],qty);
+  }
+}
+
+function pickRandom(arr, n){
+  const shuffled=[...arr].sort(()=>Math.random()-.5);
+  const result=[];
+  while(result.length<n) result.push(...shuffled.slice(0,Math.min(n-result.length,shuffled.length)));
+  return result.slice(0,n);
+}
+
+function showCurrentQuestion(){
+  const q=session.questions[session.idx];
+  const total=session.questions.length;
+  const pct=Math.round((session.idx/total)*100);
+  document.getElementById('progressLabel').textContent=`Pregunta ${session.idx+1} de ${total}`;
+  document.getElementById('progressFill').style.width=pct+'%';
+  const c=session.results.correct, p=session.results.partial, inc=session.results.incorrect;
+  document.getElementById('progressCount').textContent=`${c}✓ ${p}~ ${inc}✗`;
+  document.getElementById('qText').textContent=q.q;
+  document.getElementById('qTema').textContent=q.t;
+  document.getElementById('qNum').textContent=(session.idx+1)+'/'+total;
+  document.getElementById('qSource').textContent=q.fromMaterial?'Basada en tu material':'';
+  document.getElementById('userAnswer').value='';
+  document.getElementById('feedbackArea').innerHTML='';
+  document.getElementById('btnEvaluar').disabled=false;
+}
+
+async function evalAnswer(){
+  const answer=document.getElementById('userAnswer').value.trim();
+  if(!answer){alert('Escribí algo primero.');return;}
+  const btn=document.getElementById('btnEvaluar');
+  btn.disabled=true;
+  btn.innerHTML='<span class="spinner"></span>Evaluando...';
+  const q=session.questions[session.idx];
+  const prompt=`Sos un profesor universitario. Pregunta: "${q.q}". Respuesta del alumno: "${answer}". Evaluá en 2-3 líneas: qué entendió y qué le falta. Sé directo. Al final escribí exactamente una de estas palabras sola: CORRECTO, PARCIAL, o INCORRECTO.`;
+  try{
+    const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:300,messages:[{role:'user',content:prompt}]})});
+    const d=await r.json();
+    const text=d.content[0].text.trim();
+    const lines=text.split('\n');
+    const verdict=lines[lines.length-1].trim();
+    const feedback=lines.slice(0,-1).join(' ').trim();
+    let cls='partial',label='Parcialmente correcto';
+    if(verdict==='CORRECTO'){cls='correct';label='Correcto ✓';session.results.correct++;state.correct++;}
+    else if(verdict==='INCORRECTO'){cls='incorrect';label='A repasar ✗';session.results.incorrect++;}
+    else session.results.partial++;
+    state.answered++;
+    const today=getToday();
+    const yesterday=new Date(Date.now()-86400000).toISOString().slice(0,10);
+    if(state.lastDate!==today){state.streak=(state.lastDate===yesterday)?state.streak+1:1;state.lastDate=today;document.getElementById('todayDoneBanner').style.display='block';}
+    save();updateStats();
+    const isLast=session.idx>=session.questions.length-1;
+    document.getElementById('feedbackArea').innerHTML=`
+      <div class="feedback ${cls}"><div class="feedback-verdict">${label}</div>${feedback}</div>
+      <div class="btn-row" style="margin-top:8px">
+        ${isLast?`<button class="primary" onclick="finishSession()">Ver resultado</button>`:`<button class="primary" onclick="nextQuestion()">Siguiente →</button>`}
+      </div>`;
+  }catch(e){
+    document.getElementById('feedbackArea').innerHTML='<div class="feedback partial">Error de conexión. Intentá de nuevo.</div>';
+  }
+  btn.disabled=false;btn.textContent='Evaluar';
+}
+
+function skipQuestion(){
+  session.results.incorrect++;
+  state.answered++;
+  save();updateStats();
+  nextQuestion();
+}
+
+function nextQuestion(){
+  session.idx++;
+  if(session.idx>=session.questions.length){finishSession();return;}
+  showCurrentQuestion();
+}
+
+function finishSession(){
+  state.sessions++;
+  const today=getToday();
+  if(state.lastDate!==today){const yesterday=new Date(Date.now()-86400000).toISOString().slice(0,10);state.streak=(state.lastDate===yesterday)?state.streak+1:1;state.lastDate=today;}
+  save();updateStats();
+  const total=session.results.correct+session.results.partial+session.results.incorrect;
+  const pct=total>0?Math.round(session.results.correct/total*100):0;
+  document.getElementById('summaryScore').textContent=pct+'%';
+  document.getElementById('sumCorrect').textContent=session.results.correct;
+  document.getElementById('sumPartial').textContent=session.results.partial;
+  document.getElementById('sumIncorrect').textContent=session.results.incorrect;
+  document.getElementById('view-session').style.display='none';
+  document.getElementById('view-summary').style.display='block';
+}
+
+function abortSession(){if(confirm('¿Terminar la sesión ahora?'))finishSession();}
+
+function resetToSelect(){
+  document.getElementById('view-summary').style.display='none';
+  document.getElementById('view-select').style.display='block';
+}
+
+// FILE HANDLING
+async function handleFiles(e){
+  const files=Array.from(e.target.files);
+  const status=document.getElementById('uploadStatus');
+  status.innerHTML='<span style="color:var(--muted);font-size:13px">Procesando archivos...</span>';
+  for(const file of files){
+    await processFile(file);
+  }
+  renderFileList();
+  status.innerHTML='';
+  e.target.value='';
+}
+
+async function processFile(file){
+  const name=file.name;
+  const ext=name.split('.').pop().toLowerCase();
+  try{
+    if(ext==='pdf'){
+      const text=await extractPDF(file);
+      const mat=guessMateria(name);
+      if(!uploadedMaterials[mat])uploadedMaterials[mat]={files:[]};
+      uploadedMaterials[mat].files.push(name);
+      uploadedMaterials[mat].text=(uploadedMaterials[mat].text||'')+'\n\n'+text;
+      uploadedMaterials[mat].type='text';
+    } else if(['txt','md'].includes(ext)){
+      const text=await file.text();
+      const mat=guessMateria(name);
+      if(!uploadedMaterials[mat])uploadedMaterials[mat]={files:[]};
+      uploadedMaterials[mat].files.push(name);
+      uploadedMaterials[mat].text=(uploadedMaterials[mat].text||'')+'\n\n'+text;
+      uploadedMaterials[mat].type='text';
+    } else if(['png','jpg','jpeg','webp'].includes(ext)){
+      const b64=await toBase64(file);
+      const mt=file.type||'image/jpeg';
+      const mat=guessMateria(name);
+      uploadedMaterials[mat]={files:[name],data:b64,mediaType:mt,type:'image'};
+    }
+  }catch(err){console.error(err);}
+}
+
+async function extractPDF(file){
+  const arrayBuffer=await file.arrayBuffer();
+  const pdf=await pdfjsLib.getDocument({data:arrayBuffer}).promise;
+  let text='';
+  for(let i=1;i<=Math.min(pdf.numPages,30);i++){
+    const page=await pdf.getPage(i);
+    const content=await page.getTextContent();
+    text+=content.items.map(x=>x.str).join(' ')+'\n';
+  }
+  return text.trim();
+}
+
+function toBase64(file){
+  return new Promise((res,rej)=>{
+    const r=new FileReader();
+    r.onload=e=>res(e.target.result.split(',')[1]);
+    r.onerror=rej;
+    r.readAsDataURL(file);
+  });
+}
+
+function guessMateria(name){
+  const n=name.toLowerCase();
+  if(n.includes('alg')||n.includes('prog')||n.includes('lista')||n.includes('archi'))return 'alg';
+  if(n.includes('calc')||n.includes('cuv')||n.includes('mat'))return 'cuv';
+  if(n.includes('econ')||n.includes('micro')||n.includes('macro'))return 'econ';
+  if(n.includes('fis')||n.includes('phy'))return 'fis';
+  return 'cuv';
+}
+
+function renderFileList(){
+  const list=document.getElementById('fileList');
+  list.innerHTML='';
+  for(const [mat,data] of Object.entries(uploadedMaterials)){
+    if(!data.files||data.files.length===0)continue;
+    const chip=document.createElement('div');
+    chip.className='file-chip';
+    const dot=document.createElement('span');
+    dot.innerHTML=`<span class="mat-dot dot-${mat}" style="margin-right:6px"></span>`;
+    const label=document.createElement('span');
+    label.style.flex='1';
+    label.style.fontSize='12px';
+    label.textContent=`${MAT_NAMES[mat]}: ${data.files.join(', ')}`;
+    const btn=document.createElement('button');
+    btn.textContent='×';
+    btn.onclick=()=>{delete uploadedMaterials[mat];renderFileList();};
+    chip.appendChild(dot);chip.appendChild(label);chip.appendChild(btn);
+    list.appendChild(chip);
+  }
+}
+
+// EMAIL
+function saveConfig(){
+  const cfg={cfgEmail:document.getElementById('cfgEmail').value,cfgHora:document.getElementById('cfgHora').value,cfgPublicKey:document.getElementById('cfgPublicKey').value,cfgServiceId:document.getElementById('cfgServiceId').value,cfgTemplateId:document.getElementById('cfgTemplateId').value};
+  try{localStorage.setItem('ed2_config',JSON.stringify(cfg));}catch(e){}
+  if(cfg.cfgPublicKey)emailjs.init(cfg.cfgPublicKey);
+  scheduleEmail(cfg);
+  showStatus('cfgStatus','Guardado. Email diario activado para las '+cfg.cfgHora+'.','ok');
+}
+
+function scheduleEmail(cfg){
+  if(notifTimer)clearTimeout(notifTimer);
+  if(!cfg.cfgHora||!cfg.cfgEmail)return;
+  const[h,m]=cfg.cfgHora.split(':').map(Number);
+  const now=new Date();let next=new Date();next.setHours(h,m,0,0);
+  if(next<=now)next.setDate(next.getDate()+1);
+  notifTimer=setTimeout(function fire(){sendDailyEmail(cfg);notifTimer=setTimeout(fire,86400000);},next-now);
+}
+
+async function sendDailyEmail(cfg){
+  const mats=['alg','cuv','econ','fis'];
+  const mat=mats[new Date().getDay()%mats.length];
+  const qs=FALLBACK[mat];
+  const q=qs[Math.floor(Math.random()*qs.length)];
+  try{await emailjs.send(cfg.cfgServiceId,cfg.cfgTemplateId,{to_email:cfg.cfgEmail,materia:MAT_NAMES[mat],pregunta:q.q,tema:q.t,hora:new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'})});}catch(e){console.error(e);}
+}
+
+async function testEmail(){
+  const cfg={cfgEmail:document.getElementById('cfgEmail').value,cfgPublicKey:document.getElementById('cfgPublicKey').value,cfgServiceId:document.getElementById('cfgServiceId').value,cfgTemplateId:document.getElementById('cfgTemplateId').value};
+  if(!cfg.cfgEmail||!cfg.cfgPublicKey||!cfg.cfgServiceId||!cfg.cfgTemplateId){showStatus('cfgStatus','Completá todos los campos.','err');return;}
+  emailjs.init(cfg.cfgPublicKey);
+  showStatus('cfgStatus','Enviando...','info');
+  try{await emailjs.send(cfg.cfgServiceId,cfg.cfgTemplateId,{to_email:cfg.cfgEmail,materia:'Economía',pregunta:'¿Qué mide el PBI y cuáles son sus métodos de cálculo?',tema:'Macroeconomía',hora:new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'})});showStatus('cfgStatus','Enviado. Revisá tu bandeja (y spam).','ok');}
+  catch(e){showStatus('cfgStatus','Error: '+JSON.stringify(e),'err');}
+}
+
+function showStatus(id,msg,type){const el=document.getElementById(id);el.className='status-msg status-'+type;el.textContent=msg;}
+
+load();
+</script>
+</body>
+</html>
